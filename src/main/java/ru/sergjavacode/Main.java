@@ -1,6 +1,7 @@
 package ru.sergjavacode;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 public class Main {
 
@@ -11,9 +12,10 @@ public class Main {
         }
 
         long startTs = System.currentTimeMillis(); // start time
-        List<Thread> threads = new ArrayList<>();
+        List<Future<Integer>> threads = new ArrayList<>();
+        ExecutorService threadPool = Executors.newFixedThreadPool(texts.length);
         for (String text : texts) {
-            Runnable myRunnable = () -> {
+            Callable<Integer> myCallable = () -> {
                 int maxSize = 0;
                 for (int i = 0; i < text.length(); i++) {
                     for (int j = 0; j < text.length(); j++) {
@@ -33,14 +35,25 @@ public class Main {
                     }
                 }
                 System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                return maxSize;
             };
-            Thread myTreadForForeach = new Thread(myRunnable);
-            threads.add(new Thread(myRunnable));
-            myTreadForForeach.start();
+            threads.add(threadPool.submit(myCallable));
+
         }
-        for (Thread thread : threads) {
-            thread.join(); // зависаем, ждём когда поток объект которого лежит в thread завершится
+        int max = 0;
+        int receivedValue;
+        for (Future thread : threads) {
+            try {
+                receivedValue = (int) thread.get();
+                if (max < receivedValue) {
+                    max = receivedValue;
+                }
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
         }
+        threadPool.shutdown();
+        System.out.println("Максимальный интервал значений: " + max);
         long endTs = System.currentTimeMillis(); // end time
 
         System.out.println("Time: " + (endTs - startTs) + "ms");
